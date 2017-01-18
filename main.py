@@ -14,17 +14,69 @@ DISCOUNT = 0.5
 
 def main():
     unigrams, bigrams, trigrams = train('data/brown_train.txt')
-    #print(str((START, START, 'The') in trigrams.keys()))
-    #eval_model('data/brown_dev.txt', unigrams, bigrams, trigrams)
-    #test_unigrams, test_bigrams, test_trigrams = train('data/brown_dev.txt')
-    sentence = 'The marines let him advance .'
+    perplexity = eval_model('data/brown_dev.txt', unigrams, bigrams, trigrams)
+    '''sentence = 'The marines let him advance .'
     sentence_perplexity = eval_sentence(sentence, unigrams, bigrams, trigrams) / len(sentence.split())
     print(str(sentence_perplexity))
     #print(str(get_prob(NGram(('Thus', ',', 'while')), unigrams, bigrams, trigrams, dict(), dict())))
-    #print(str(get_backoff_denom(NGram((',',)), unigrams, bigrams, trigrams, dict(), dict())))
+    #print(str(get_backoff_denom(NGram((',',)), unigrams, bigrams, trigrams, dict(), dict())))'''
 
 
-# returns the perplexity
+# returns a tuple of Counter objects (unigrams, bigrams, trigrams)
+def train(filename):
+    print('training...')
+
+    # initializing empty Counter objects to store the n-grams
+    unigrams = Counter()
+    bigrams = Counter()
+    trigrams = Counter()
+
+    lines = list()
+    with open(filename) as f:
+        for line in f:
+            lines.append(line)
+
+    # creating the unigram counts
+    for line in lines:
+        tokens = line.split()
+        tokens.insert(0, START)
+        tokens.insert(0, START)
+        tokens.append(STOP)
+        get_n_gram_counts(1, unigrams, tokens)
+
+    # the set of all unigrams that have a count of 1
+    unks = set()
+    for unigram, count in unigrams.items():
+        if count == 1:
+            unks.add(unigram)
+
+    for unigram in unks:
+        del unigrams[unigram]
+
+    unigrams[(UNK,)] = len(unks)
+
+    # creating the bigram and trigram counts
+    for line in lines:
+        tokens = [token if token not in unks else UNK for token in line.split()]
+        tokens.insert(0, START)
+        tokens.insert(0, START)
+        tokens.append(STOP)
+        get_n_gram_counts(2, bigrams, tokens)
+        get_n_gram_counts(3, trigrams, tokens)
+
+    print('finished training!')
+    return unigrams, bigrams, trigrams
+
+
+# helper method to add the n-gram counts of the specified tokens to the n_grams Counter object
+def get_n_gram_counts(n, n_grams, tokens):
+    for i in range(len(tokens) - (n - 1)):
+        n_grams[tuple(tokens[i:i+n])] += 1
+
+    return n_grams
+
+
+# returns the perplexity of the model
 def eval_model(filename, unigrams, bigrams, trigrams):
     print('evaluating model')
 
@@ -32,8 +84,10 @@ def eval_model(filename, unigrams, bigrams, trigrams):
         overall_prob = 1
 
         for line in f:
+            print('getting a prob for the line:')
+            print('\t' + line)
             prob = eval_sentence(line, unigrams, bigrams, trigrams)
-            #print('got a prob ' + str(prob))
+            print('got a prob ' + str(prob))
             overall_prob *= prob
 
         f.close()
@@ -41,62 +95,9 @@ def eval_model(filename, unigrams, bigrams, trigrams):
         return overall_prob
 
 
-def train(filename):
-    print('training...')
-
-    unigrams = Counter()
-    bigrams = Counter()
-    trigrams = Counter()
-
-    with open(filename) as f:
-        for line in f:
-            tokens = line.split()
-            tokens.insert(0, START)
-            tokens.insert(0, START)
-            tokens.append(STOP)
-            get_n_gram_counts(1, unigrams, tokens)
-            #get_n_gram_counts(2, bigrams, tokens)
-            #get_n_gram_counts(3, trigrams, tokens)
-
-        unks = set()
-        for unigram, count in unigrams.items():
-            if count == 1:
-                unks.add(unigram)
-
-        for unigram in unks:
-            del unigrams[unigram]
-
-        unigrams[UNK] = len(unks)
-
-        f.close()
-
-    with open(filename) as f:
-        for line in f:
-            tokens = [token if token not in unks else UNK for token in line.split()]
-            tokens.insert(0, START)
-            tokens.insert(0, START)
-            tokens.append(STOP)
-            get_n_gram_counts(2, bigrams, tokens)
-            get_n_gram_counts(3, trigrams, tokens)
-
-    f.close()
-    print('finished training!')
-
-    return unigrams, bigrams, trigrams
-
-
-def get_n_gram_counts(n, n_grams, tokens):
-    # creating n-grams
-    #for i in range(3 - n, len(tokens) - (n - 1)):
-    for i in range(len(tokens) - (n - 1)):
-        n_grams[tuple(tokens[i:i+n])] += 1
-
-    return n_grams
-
-
-# returns LOG probability of a sentence
+# returns log probability of a sentence
 def eval_sentence(sentence, unigrams, bigrams, trigrams):
-    tokens = sentence.split()
+    tokens = [token if (token,) in unigrams.keys() else UNK for token in sentence.split()]
     tokens.insert(0, START)
     tokens.insert(0, START)
     tokens.append(STOP)
@@ -112,20 +113,20 @@ def eval_sentence(sentence, unigrams, bigrams, trigrams):
         next_prob = get_prob(n_gram, unigrams, bigrams, trigrams, n_grams_to_probs, history_to_alphas, history_to_denoms)
         print('got the probability: ' + str(next_prob))
         prob *= next_prob
-        print('evaluated an n-gram')
 
     log_prob = math.log(prob, 2)
     return log_prob
 
 
+# returns the probability of a specified n-gram in the model
 def get_prob(n_gram, unigrams, bigrams, trigrams, n_grams_to_probs, history_to_alphas, history_to_denoms):
-    #print('called get_prob with n-gram ' + str(n_gram.seq))
     if n_gram in n_grams_to_probs:
         return n_grams_to_probs[n_gram]
+
     if len(n_gram) == 0:
         return 0
 
-    if n_gram_exists(n_gram, unigrams, bigrams, trigrams) or len(n_gram) == 1:
+    if n_gram_seen_in_training(n_gram, unigrams, bigrams, trigrams) or len(n_gram) == 1:
         return get_discounted_MLE_prob(n_gram, unigrams, bigrams, trigrams)
 
     next_gram = tuple(n_gram[1:])
@@ -133,8 +134,6 @@ def get_prob(n_gram, unigrams, bigrams, trigrams, n_grams_to_probs, history_to_a
     numer = get_prob(next_gram, unigrams, bigrams, trigrams, n_grams_to_probs, history_to_alphas, history_to_denoms)
     denom = get_backoff_denom(history_n_gram, unigrams, bigrams, trigrams, n_grams_to_probs, history_to_alphas, history_to_denoms)
     alpha = get_alpha(history_n_gram, unigrams, bigrams, trigrams, history_to_alphas)
-    '''if denom == 0:
-        #print('got a 0 denom for the n_gram ' + str(n_gram.seq))'''
 
     prob = alpha * numer / denom
     n_grams_to_probs[n_gram] = prob
@@ -142,7 +141,8 @@ def get_prob(n_gram, unigrams, bigrams, trigrams, n_grams_to_probs, history_to_a
     return prob
 
 
-def n_gram_exists(n_gram, unigrams, bigrams, trigrams):
+# given a specified n-gram, returns whether or not it was seen in the training data
+def n_gram_seen_in_training(n_gram, unigrams, bigrams, trigrams):
     if len(n_gram) == 1:
         return n_gram in unigrams.keys()
 
@@ -166,41 +166,34 @@ def get_discounted_MLE_prob(n_gram, unigrams, bigrams, trigrams):
         numer = unigrams[n_gram]
         denom = sum(unigrams.values()) - unigrams[(START,)]
 
-    # neither of these should be 0, ever
     return numer / denom
 
 
-# TODO: implement this
 def get_backoff_denom(history_n_gram, unigrams, bigrams, trigrams, n_grams_to_probs, history_to_alphas, history_to_denoms):
-    #print('called get_backoff_denom with n-gram ' + str(history_n_gram.seq))
-    #print('history_n_gram size is ' + str(history_n_gram.n))
     if history_n_gram in history_to_denoms:
         return history_to_denoms[history_n_gram]
 
     existing = set()
     for n_gram, count in get_n_gram_counts_for_some_history(history_n_gram, bigrams, trigrams):
         existing.add(tuple(n_gram[-1],))
-
     w_s = set(unigrams.keys()).difference(existing)
-    #print('w\'s is of size ' + str(len(w_s)))
 
     if len(history_n_gram) == 2:
-        #print('n gram is of size 2')
-        sum = 0
+        denom = 0
         for w in w_s:
-            sum += get_prob((history_n_gram[1], w[0]), unigrams, bigrams, trigrams, n_grams_to_probs, history_to_alphas, history_to_denoms)
+            denom += get_prob((history_n_gram[1], w[0]), unigrams, bigrams, trigrams, n_grams_to_probs, history_to_alphas, history_to_denoms)
 
-        history_to_denoms[history_n_gram] = sum
-        return sum
+        history_to_denoms[history_n_gram] = denom
+        return denom
 
     if len(history_n_gram) == 1:
-        sum = 0
+        denom = 0
         for w in w_s:
-            if n_gram_exists(w, unigrams, bigrams, trigrams):
-                sum += get_discounted_MLE_prob(w, unigrams, bigrams, trigrams)
+            if n_gram_seen_in_training(w, unigrams, bigrams, trigrams):
+                denom += get_discounted_MLE_prob(w, unigrams, bigrams, trigrams)
 
-        history_to_denoms[history_n_gram] = sum
-        return sum
+        history_to_denoms[history_n_gram] = denom
+        return denom
 
 
 def get_alpha(history_n_gram, unigrams, bigrams, trigrams, history_to_alphas):
