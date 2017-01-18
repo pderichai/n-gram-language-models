@@ -1,15 +1,20 @@
 import math
-from n_gram import NGram
 from collections import Counter
 
 
+# start symbol
 START = '<s>'
+# stop symbol
 STOP = '</s>'
+# unk symbol
+UNK = '<UNK>'
+# katz-backoff discount hyper-parameter
 DISCOUNT = 0.5
 
 
 def main():
     unigrams, bigrams, trigrams = train('data/brown_train.txt')
+    #print(str((START, START, 'The') in trigrams.keys()))
     #eval_model('data/brown_dev.txt', unigrams, bigrams, trigrams)
     #test_unigrams, test_bigrams, test_trigrams = train('data/brown_dev.txt')
     sentence = 'The marines let him advance .'
@@ -50,9 +55,31 @@ def train(filename):
             tokens.insert(0, START)
             tokens.append(STOP)
             get_n_gram_counts(1, unigrams, tokens)
+            #get_n_gram_counts(2, bigrams, tokens)
+            #get_n_gram_counts(3, trigrams, tokens)
+
+        unks = set()
+        for unigram, count in unigrams.items():
+            if count == 1:
+                unks.add(unigram)
+
+        for unigram in unks:
+            del unigrams[unigram]
+
+        unigrams[UNK] = len(unks)
+
+        f.close()
+
+    with open(filename) as f:
+        for line in f:
+            tokens = [token if token not in unks else UNK for token in line.split()]
+            tokens.insert(0, START)
+            tokens.insert(0, START)
+            tokens.append(STOP)
             get_n_gram_counts(2, bigrams, tokens)
             get_n_gram_counts(3, trigrams, tokens)
 
+    f.close()
     print('finished training!')
 
     return unigrams, bigrams, trigrams
@@ -60,8 +87,9 @@ def train(filename):
 
 def get_n_gram_counts(n, n_grams, tokens):
     # creating n-grams
-    for i in range(0, len(tokens) - (n - 1)):
-        n_grams[NGram(tuple(tokens[i:i+n]))] += 1
+    #for i in range(3 - n, len(tokens) - (n - 1)):
+    for i in range(len(tokens) - (n - 1)):
+        n_grams[tuple(tokens[i:i+n])] += 1
 
     return n_grams
 
@@ -79,8 +107,8 @@ def eval_sentence(sentence, unigrams, bigrams, trigrams):
     n_grams_to_probs = dict()
 
     for i in range(len(tokens) - 2):
-        n_gram = NGram((tuple(tokens[i:i+3])))
-        print('getting the probability for the n_gram ' + str(n_gram.seq))
+        n_gram = tuple(tokens[i:i+3])
+        print('getting the probability for the n_gram ' + str(n_gram))
         next_prob = get_prob(n_gram, unigrams, bigrams, trigrams, n_grams_to_probs, history_to_alphas, history_to_denoms)
         print('got the probability: ' + str(next_prob))
         prob *= next_prob
@@ -94,14 +122,14 @@ def get_prob(n_gram, unigrams, bigrams, trigrams, n_grams_to_probs, history_to_a
     #print('called get_prob with n-gram ' + str(n_gram.seq))
     if n_gram in n_grams_to_probs:
         return n_grams_to_probs[n_gram]
-    if n_gram.n == 0:
+    if len(n_gram) == 0:
         return 0
 
-    if n_gram_exists(n_gram, unigrams, bigrams, trigrams) or n_gram.n == 1:
+    if n_gram_exists(n_gram, unigrams, bigrams, trigrams) or len(n_gram) == 1:
         return get_discounted_MLE_prob(n_gram, unigrams, bigrams, trigrams)
 
-    next_gram = NGram(n_gram.seq[1:])
-    history_n_gram = NGram(n_gram.seq[:-1])
+    next_gram = tuple(n_gram[1:])
+    history_n_gram = tuple(n_gram[:-1])
     numer = get_prob(next_gram, unigrams, bigrams, trigrams, n_grams_to_probs, history_to_alphas, history_to_denoms)
     denom = get_backoff_denom(history_n_gram, unigrams, bigrams, trigrams, n_grams_to_probs, history_to_alphas, history_to_denoms)
     alpha = get_alpha(history_n_gram, unigrams, bigrams, trigrams, history_to_alphas)
@@ -115,28 +143,28 @@ def get_prob(n_gram, unigrams, bigrams, trigrams, n_grams_to_probs, history_to_a
 
 
 def n_gram_exists(n_gram, unigrams, bigrams, trigrams):
-    if n_gram.n == 1:
+    if len(n_gram) == 1:
         return n_gram in unigrams.keys()
 
-    if n_gram.n == 2:
+    if len(n_gram) == 2:
         return n_gram in bigrams.keys()
 
-    if n_gram.n == 3:
+    if len(n_gram) == 3:
         return n_gram in trigrams.keys()
 
 
 def get_discounted_MLE_prob(n_gram, unigrams, bigrams, trigrams):
-    if n_gram.n == 3:
+    if len(n_gram) == 3:
         numer = trigrams[n_gram] - DISCOUNT
-        denom = bigrams[NGram(n_gram.seq[:-1])]
+        denom = bigrams[tuple(n_gram[:-1])]
 
-    if n_gram.n == 2:
+    if len(n_gram) == 2:
         numer = bigrams[n_gram] - DISCOUNT
-        denom = unigrams[NGram(n_gram.seq[:-1])]
+        denom = unigrams[tuple(n_gram[:-1])]
 
-    if n_gram.n == 1:
+    if len(n_gram) == 1:
         numer = unigrams[n_gram]
-        denom = sum(unigrams.values())
+        denom = sum(unigrams.values()) - unigrams[(START,)]
 
     # neither of these should be 0, ever
     return numer / denom
@@ -150,22 +178,22 @@ def get_backoff_denom(history_n_gram, unigrams, bigrams, trigrams, n_grams_to_pr
         return history_to_denoms[history_n_gram]
 
     existing = set()
-    for n_gram, count in get_n_gram_counts_for_some_history(history_n_gram.seq, bigrams, trigrams):
-        existing.add(NGram((n_gram.seq[-1],)))
+    for n_gram, count in get_n_gram_counts_for_some_history(history_n_gram, bigrams, trigrams):
+        existing.add(tuple(n_gram[-1],))
 
     w_s = set(unigrams.keys()).difference(existing)
     #print('w\'s is of size ' + str(len(w_s)))
 
-    if history_n_gram.n == 2:
+    if len(history_n_gram) == 2:
         #print('n gram is of size 2')
         sum = 0
         for w in w_s:
-            sum += get_prob(NGram((history_n_gram.seq[1], w.seq[0])), unigrams, bigrams, trigrams, n_grams_to_probs, history_to_alphas, history_to_denoms)
+            sum += get_prob((history_n_gram[1], w[0]), unigrams, bigrams, trigrams, n_grams_to_probs, history_to_alphas, history_to_denoms)
 
         history_to_denoms[history_n_gram] = sum
         return sum
 
-    if history_n_gram.n == 1:
+    if len(history_n_gram) == 1:
         sum = 0
         for w in w_s:
             if n_gram_exists(w, unigrams, bigrams, trigrams):
@@ -180,7 +208,7 @@ def get_alpha(history_n_gram, unigrams, bigrams, trigrams, history_to_alphas):
         return history_to_alphas[history_n_gram]
 
     ret = 0
-    for n_gram, count in get_n_gram_counts_for_some_history(history_n_gram.seq, bigrams, trigrams):
+    for n_gram, count in get_n_gram_counts_for_some_history(history_n_gram, bigrams, trigrams):
         if history_n_gram.n == 2:
             ret += (count - DISCOUNT) / bigrams[history_n_gram]
         if history_n_gram.n == 1:
@@ -194,12 +222,12 @@ def get_alpha(history_n_gram, unigrams, bigrams, trigrams, history_to_alphas):
 def get_n_gram_counts_for_some_history(history, bigrams, trigrams):
     if len(history) == 2:
         for n_gram, count in trigrams.items():
-            if all(k1 == k2 or k2 is None for k1, k2 in zip(n_gram.seq, (history[0], history[1], None))):
+            if all(k1 == k2 or k2 is None for k1, k2 in zip(n_gram, (history[0], history[1], None))):
                 yield n_gram, count
 
     if len(history) == 1:
         for n_gram, count in bigrams.items():
-            if all(k1 == k2 or k2 is None for k1, k2 in zip(n_gram.seq, (history[0], None))):
+            if all(k1 == k2 or k2 is None for k1, k2 in zip(n_gram, (history[0], None))):
                 yield n_gram, count
 
 
