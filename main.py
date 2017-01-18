@@ -209,9 +209,9 @@ def get_alpha(history_n_gram, unigrams, bigrams, trigrams, history_to_alphas):
 
     ret = 0
     for n_gram, count in get_n_gram_counts_for_some_history(history_n_gram, bigrams, trigrams):
-        if history_n_gram.n == 2:
+        if len(history_n_gram) == 2:
             ret += (count - DISCOUNT) / bigrams[history_n_gram]
-        if history_n_gram.n == 1:
+        if len(history_n_gram) == 1:
             ret += (count - DISCOUNT) / unigrams[history_n_gram]
     ret = 1 - ret
 
