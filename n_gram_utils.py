@@ -87,7 +87,7 @@ def eval_model(filename, model, log_prob_func):
 
 # returns log probability of a sentence and how many tokens were in the sentence
 def eval_sentence(sentence, model, log_prob_func):
-    tokens = [token if (token,) in model[0].keys() else UNK for token in sentence.split()]
+    tokens = [token if (token,) in model[0] else UNK for token in sentence.split()]
     num_tokens = len(tokens) + 1
     tokens.insert(0, START)
     tokens.insert(0, START)
