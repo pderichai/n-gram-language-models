@@ -21,7 +21,7 @@ def train(filename):
     trigrams = Counter()
 
     lines = list()
-    with open(filename) as f:
+    with open(filename, encoding='iso-8859-1') as f:
         for line in f:
             lines.append(line)
 
