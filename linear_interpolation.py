@@ -1,4 +1,5 @@
 import math
+from collections import Counter
 
 
 # start symbol
@@ -7,6 +8,10 @@ START = '<s>'
 STOP = '</s>'
 # unk symbol
 UNK = '<UNK>'
+# the names of the different datasets we want to model
+DATASETS = ['reuters', 'brown', 'gutenberg']
+# whether or not to evaluate on the dev datasets
+DEV = True
 
 # linear interpolation hyper-parameters
 LAMBDA_1 = 0.2
@@ -15,43 +20,64 @@ LAMBDA_3 = 0.5
 
 
 def main():
-    model = train('data/reuters_train.txt')
-
     # returns the log probability of a specified n-gram
-    def get_log_prob(n_gram, model):
+    def get_log_prob(n_gram, model, caches):
+        if n_gram in caches[2]:
+            return caches[2][n_gram]
+
+        # uni-gram part
+        if n_gram[2:] in caches[0]:
+            unigram_part = caches[0][n_gram[2:]]
+        else:
+            uni_numer = model[0][n_gram[2:]]
+            uni_denom = sum(model[0].values()) - model[0][(START,)]
+            unigram_part = 0
+            if uni_denom != 0:
+                unigram_part = LAMBDA_3 * uni_numer / uni_denom
+            caches[0][n_gram[2:]] = unigram_part
+
+        # bi-gram part
+        if n_gram[1:] in caches[1]:
+            bigram_part = caches[1][n_gram[1:]]
+        else:
+            bi_numer = model[1][n_gram[1:]]
+            bi_denom = model[0][n_gram[2:]]
+            bigram_part = 0
+            if bi_denom != 0:
+                bigram_part = LAMBDA_2 * bi_numer / bi_denom
+            caches[1][n_gram[1:]] = bigram_part
+
         # tri-gram part
         tri_numer = model[2][n_gram]
-        tri_denom = model[1][tuple(n_gram[1:])]
+        tri_denom = model[1][n_gram[1:]]
         trigram_part = 0
         if tri_denom != 0:
             trigram_part = LAMBDA_1 * tri_numer / tri_denom
 
-        # bi-gram part
-        bi_numer = model[1][tuple(n_gram[1:])]
-        bi_denom = model[0][tuple(n_gram[2:])]
-        bigram_part = 0
-        if bi_denom != 0:
-            bigram_part = LAMBDA_2 * bi_numer / bi_denom
-
-        # uni-gram part
-        uni_numer = model[0][tuple(n_gram[2:])]
-        uni_denom = sum(model[0].values()) - model[0][(START,)]
-        unigram_part = 0
-        if uni_denom != 0:
-            unigram_part = LAMBDA_3 * uni_numer / uni_denom
-
         prob = trigram_part + bigram_part + unigram_part
         log_prob = math.log(prob, 2)
+        caches[2][n_gram] = log_prob
         return log_prob
 
-    perplexity = eval_model('data/reuters_test.txt', model, get_log_prob)
-    print(str(perplexity))
+    for train_dataset in DATASETS:
+        print('training on ' + train_dataset + '...')
+        unigrams, bigrams, trigrams = train('data/' + train_dataset + '_train.txt')
+        model = (unigrams, bigrams, trigrams)
+
+        # (unigrams_to_probs, bigrams_to_probs, n_grams_to_interpolated_probs)
+        caches = (dict(), dict(), dict(), dict())
+
+        for test_dataset in DATASETS:
+            print('evaluating ' + train_dataset + ' on ' + test_dataset + ' test set...')
+            if DEV:
+                perplexity = eval_model('data/' + test_dataset + '_dev.txt', model, get_log_prob, caches)
+            else:
+                perplexity = eval_model('data/' + test_dataset + '_test.txt', model, get_log_prob, caches)
+
+            print('trained on: ' + train_dataset + '; tested on: ' + test_dataset + '; perplexity: ' + str(perplexity))
 
 
-# returns a tuple of Counter objects (unigrams, bigrams, trigrams)
 def train(filename):
-    print('training...')
-
     # initializing empty Counter objects to store the n-grams
     unigrams = Counter()
     bigrams = Counter()
@@ -62,7 +88,7 @@ def train(filename):
         for line in f:
             lines.append(line)
 
-    # creating the unigram counts
+    # creating the uni-gram counts
     for line in lines:
         tokens = line.split()
         tokens.insert(0, START)
@@ -70,14 +96,14 @@ def train(filename):
         tokens.append(STOP)
         add_n_gram_counts(1, unigrams, tokens)
 
-    # the set of all unigrams that have a count of 1
+    # the set of all uni-grams that have a count of 1
     unks = set()
     for unigram, count in unigrams.items():
         if count == 1:
-            unks.add(unigram)
+            unks.add(unigram[0])
 
-    for unigram in unks:
-        del unigrams[unigram]
+    for word in unks:
+        del unigrams[(word,)]
 
     unigrams[(UNK,)] = len(unks)
 
@@ -90,7 +116,6 @@ def train(filename):
         add_n_gram_counts(2, bigrams, tokens)
         add_n_gram_counts(3, trigrams, tokens)
 
-    print('finished training!')
     return unigrams, bigrams, trigrams
 
 
@@ -103,27 +128,24 @@ def add_n_gram_counts(n, n_grams, tokens):
 
 
 # returns the perplexity of the model
-def eval_model(filename, model, log_prob_func):
-    print('evaluating model')
-
+def eval_model(filename, model, log_prob_func, caches):
     log_prob_sum = 0
     file_word_count = 0
 
-    with open(filename) as f:
+    with open(filename, encoding='iso-8859-1') as f:
         for line in f:
-            prob, num_tokens = eval_sentence(line, model, log_prob_func)
+            prob, num_tokens = eval_sentence(line, model, log_prob_func, caches)
             log_prob_sum += prob
             file_word_count += num_tokens
         f.close()
 
-    print('finished evaluating!')
     average_log_prob = log_prob_sum / file_word_count
     perplexity = 2**(-average_log_prob)
     return perplexity
 
 
 # returns log probability of a sentence and how many tokens were in the sentence
-def eval_sentence(sentence, model, log_prob_func):
+def eval_sentence(sentence, model, log_prob_func, caches):
     tokens = [token if (token,) in model[0] else UNK for token in sentence.split()]
     num_tokens = len(tokens) + 1
     tokens.insert(0, START)
@@ -133,7 +155,7 @@ def eval_sentence(sentence, model, log_prob_func):
     log_prob_sum = 0
     for i in range(len(tokens) - 2):
         n_gram = tuple(tokens[i:i+3])
-        next_prob = log_prob_func(n_gram, model)
+        next_prob = log_prob_func(n_gram, model, caches)
         log_prob_sum += next_prob
 
     return log_prob_sum, num_tokens
