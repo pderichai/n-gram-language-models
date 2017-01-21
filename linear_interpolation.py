@@ -19,9 +19,9 @@ DATASETS = ['reuters', 'brown', 'gutenberg']
 DEV = False
 '''Whether or not to evaluate the models on the dev datasets or test datasets.'''
 
-LAMBDA_1 = 0.2
+LAMBDA_1 = 0.4
 LAMBDA_2 = 0.3
-LAMBDA_3 = 0.5
+LAMBDA_3 = 0.3
 '''Linear interpolation hyper-parameters.'''
 
 
