@@ -62,24 +62,25 @@ def main():
         for j in LAMBDA_2s:
             LAMBDA_1 = i
             LAMBDA_2 = j
-            LAMBDA_3 = 1 - LAMBDA_1 - LAMBDA_2
-            print('LAMBDA1: ' + str(LAMBDA_1) + ' LAMBDA2: ' + str(LAMBDA_2) + ' LAMBDA3: ' + str(LAMBDA_3))
-            for train_dataset in DATASETS:
-                print('training on ' + train_dataset + '...')
-                unigrams, bigrams, trigrams = train('data/' + train_dataset + '_train.txt')
-                model = (unigrams, bigrams, trigrams)
+            if LAMBDA_1 + LAMBDA_2 < 10:
+                LAMBDA_3 = 1 - LAMBDA_1 - LAMBDA_2
+                print('LAMBDA1: ' + str(LAMBDA_1) + ' LAMBDA2: ' + str(LAMBDA_2) + ' LAMBDA3: ' + str(LAMBDA_3))
+                for train_dataset in DATASETS:
+                    print('training on ' + train_dataset + '...')
+                    unigrams, bigrams, trigrams = train('data/' + train_dataset + '_train.txt')
+                    model = (unigrams, bigrams, trigrams)
 
-                # (unigrams_to_probs, bigrams_to_probs, n_grams_to_interpolated_probs)
-                caches = (dict(), dict(), dict(), dict())
+                    # (unigrams_to_probs, bigrams_to_probs, n_grams_to_interpolated_probs)
+                    caches = (dict(), dict(), dict(), dict())
 
-                for test_dataset in DATASETS:
-                    print('evaluating ' + train_dataset + ' on ' + test_dataset + ' test set...')
-                    if DEV:
-                        perplexity = eval_model('data/' + test_dataset + '_dev.txt', model, get_log_prob, caches)
-                    else:
-                        perplexity = eval_model('data/' + test_dataset + '_test.txt', model, get_log_prob, caches)
+                    for test_dataset in DATASETS:
+                        print('evaluating ' + train_dataset + ' on ' + test_dataset + ' test set...')
+                        if DEV:
+                            perplexity = eval_model('data/' + test_dataset + '_dev.txt', model, get_log_prob, caches)
+                        else:
+                            perplexity = eval_model('data/' + test_dataset + '_test.txt', model, get_log_prob, caches)
 
-                    print('trained on: ' + train_dataset + '; tested on: ' + test_dataset + '; perplexity: ' + str(perplexity))
+                        print('trained on: ' + train_dataset + '; tested on: ' + test_dataset + '; perplexity: ' + str(perplexity))
 
 
 def train(filename):
