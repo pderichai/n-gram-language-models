@@ -1,5 +1,6 @@
 import random
 
+'''This module will split the three corpuses into dev, train, and test sets.'''
 
 for name in ('brown', 'reuters', 'gutenberg'):
     lines = list()

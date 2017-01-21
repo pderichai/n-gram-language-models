@@ -1,6 +1,8 @@
 import math
 from collections import Counter
 
+'''This module contains a main method that will train a Katz bak-off n-gram language model on each specified dataset
+then evaluate each language model on every test set from each corpus.'''
 
 START = '<s>'
 '''Start symbol---two are prepended to the start of ever sentence.'''
@@ -11,22 +13,34 @@ STOP = '</s>'
 UNK = '<UNK>'
 '''Unknown word symbol used to describe any word that is out of vocabulary.'''
 
-# Katz back-off count discount hyper-parameter
 KATZ_DISCOUNT = 0.6
-# the names of the different datasets we want to model
+'''Katz back-off count discount hyper-parameter.'''
+
 DATASETS = ['reuters', 'brown', 'gutenberg']
-# whether or not to evaluate on the dev datasets
+'''The names of the different datasets we want to model.'''
+
 DEV = False
+'''Whether or not to evaluate the models on the dev datasets or test datasets.'''
 
 
 def main():
     def get_log_prob(n_gram, model, trie_dicts, caches):
+        '''This is a nested method that will be passed to eval_mode().
+
+        n_gram is a tuple of strings that represents an n-gram
+        model is a tuple of Counter objects (unigrams, bigrams, trigrams) that map from n-grams to counts
+        trie_dicts is a tuple of dicts to Counter objects (unigrams_to_word_to_counts, bigrams_to_word_to)counts)
+            that act as tries and give a fast look-up of words with a certain history and how many times that n-gram
+            occurred
+        caches is a tuple of dicts (unigrams_to_probs, bigrams_to_probs, n_grams_to_interpolated_probs) that memoize
+            the return values of various function calls
+        '''
         prob = get_prob(n_gram, model, trie_dicts, caches)
         log_prob = math.log(prob, 2)
         return log_prob
 
-    # returns the probability of a specified n-gram in the model
     def get_prob(n_gram, model, trie_dicts, caches):
+        '''Returns the probability of a specified n-gram in the model.'''
 
         # in the case that we've calculated this probability before
         if n_gram in caches[0]:
@@ -59,6 +73,7 @@ def main():
         return prob
 
     def get_discounted_MLE_prob(n_gram, model):
+        '''Returns the Katz discounted MLE.'''
         if len(n_gram) == 1:
             numer = model[0][n_gram]
             denom = sum(model[0].values()) - model[0][(START,)]
@@ -69,6 +84,8 @@ def main():
         return numer / denom
 
     def get_backoff_denom(history_n_gram, model, trie_dicts, caches):
+        '''Returns the denominator used in the back-off of an n-gram.'''
+
         if history_n_gram in caches[2]:
             return caches[2][history_n_gram]
 
@@ -90,6 +107,8 @@ def main():
             return 1 - curr_sum
 
     def get_alpha(history_n_gram, model, trie_dicts, caches):
+        '''Returns the alpha value used in the back-off of an n-gram'''
+
         if history_n_gram in caches[1]:
             return caches[1][history_n_gram]
 
@@ -131,6 +150,8 @@ def main():
 
 
 def eval_model(filename, model, log_prob_func, dict_tries, caches):
+    '''Returns the perplexity of the model on a specfied test set.'''
+
     log_prob_sum = 0
     file_word_count = 0
 
@@ -146,8 +167,9 @@ def eval_model(filename, model, log_prob_func, dict_tries, caches):
     return perplexity
 
 
-# returns log probability of a sentence and how many tokens were in the sentence
 def eval_sentence(sentence, model, log_prob_func, trie_dicts, caches):
+    '''Returns log probability of a sentence and how many tokens were in the sentence.'''
+
     tokens = [token if (token,) in model[0] else UNK for token in sentence.split()]
     num_tokens = len(tokens) + 1
     tokens.insert(0, START)
@@ -164,7 +186,10 @@ def eval_sentence(sentence, model, log_prob_func, trie_dicts, caches):
 
 
 def train(filename):
-    # initializing empty Counter objects to store the n-grams
+    '''Trains an n-gram model using the specified corpus.
+
+    filename is the filename of the corpus'''
+
     unigrams = Counter()
     bigrams = Counter()
     trigrams = Counter()
@@ -207,8 +232,8 @@ def train(filename):
     return unigrams, bigrams, trigrams, unigrams_to_w_to_counts, bigrams_to_w_to_counts
 
 
-# adds the n-grams to the specified Counter from the specified tokens
 def add_n_gram_counts(n, n_grams, tokens, cache):
+    '''Adds the n-grams to the specified Counter from the specified tokens.'''
     for i in range(len(tokens) - (n - 1)):
         n_gram = tuple(tokens[i:i+n])
         n_grams[n_gram] += 1

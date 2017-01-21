@@ -1,6 +1,8 @@
 import math
 from collections import Counter
 
+'''The main method in this module makes multiple evaluations of linear interpolation model with different
+lambda values.'''
 
 # start symbol
 START = '<s>'

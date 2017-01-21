@@ -1,6 +1,8 @@
 import math
 from collections import Counter
 
+'''The main method in this module makes multiple evaluations of Katz back-off using different discount values.'''
+
 # start symbol
 START = '<s>'
 # stop symbol

@@ -1,27 +1,40 @@
 import math
 from collections import Counter
 
+'''This module contains a main method that will train an interpolated n-gram language model on each specified dataset
+then evaluate each language model on every test set from each corpus.'''
 
-# start symbol
 START = '<s>'
-# stop symbol
-STOP = '</s>'
-# unk symbol
-UNK = '<UNK>'
-# the names of the different datasets we want to model
-DATASETS = ['reuters', 'brown', 'gutenberg']
-# whether or not to evaluate on the dev datasets
-DEV = True
+'''Start symbol---two are prepended to the start of ever sentence.'''
 
-# linear interpolation hyper-parameters
+STOP = '</s>'
+'''Stop symbol---one is appended to the end of every sentence.'''
+
+UNK = '<UNK>'
+'''Unknown word symbol used to describe any word that is out of vocabulary.'''
+
+DATASETS = ['reuters', 'brown', 'gutenberg']
+'''The names of the different datasets we want to model.'''
+
+DEV = False
+'''Whether or not to evaluate the models on the dev datasets or test datasets.'''
+
 LAMBDA_1 = 0.2
 LAMBDA_2 = 0.3
 LAMBDA_3 = 0.5
+'''Linear interpolation hyper-parameters.'''
 
 
 def main():
-    # returns the log probability of a specified n-gram
     def get_log_prob(n_gram, model, caches):
+        '''This is a nested method that will be passed to eval_mode().
+
+        n_gram is a tuple of strings that represents an n-gram
+        model is a tuple of Counter objects (unigrams, bigrams, trigrams) that map from n-grams to counts
+        caches is a tuple of dicts (unigrams_to_probs, bigrams_to_probs, n_grams_to_interpolated_probs) that memoize
+            the return values of various function calls
+        '''
+
         if n_gram in caches[2]:
             return caches[2][n_gram]
 
@@ -78,7 +91,10 @@ def main():
 
 
 def train(filename):
-    # initializing empty Counter objects to store the n-grams
+    '''Trains an n-gram model using the specified corpus.
+
+    filename is the filename of the corpus'''
+
     unigrams = Counter()
     bigrams = Counter()
     trigrams = Counter()
@@ -119,16 +135,17 @@ def train(filename):
     return unigrams, bigrams, trigrams
 
 
-# adds the n-grams to the specified Counter from the specified tokens
 def add_n_gram_counts(n, n_grams, tokens):
+    '''Adds the n-grams to the specified Counter from the specified tokens.'''
     for i in range(len(tokens) - (n - 1)):
         n_grams[tuple(tokens[i:i+n])] += 1
 
     return n_grams
 
 
-# returns the perplexity of the model
 def eval_model(filename, model, log_prob_func, caches):
+    '''Returns the perplexity of the model on a specified test set.'''
+
     log_prob_sum = 0
     file_word_count = 0
 
@@ -144,8 +161,9 @@ def eval_model(filename, model, log_prob_func, caches):
     return perplexity
 
 
-# returns log probability of a sentence and how many tokens were in the sentence
 def eval_sentence(sentence, model, log_prob_func, caches):
+    '''Returns log probability of a sentence and how many tokens were in the sentence.'''
+
     tokens = [token if (token,) in model[0] else UNK for token in sentence.split()]
     num_tokens = len(tokens) + 1
     tokens.insert(0, START)
