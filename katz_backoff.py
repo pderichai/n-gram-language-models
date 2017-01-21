@@ -2,18 +2,21 @@ import math
 from collections import Counter
 
 
-# start symbol
 START = '<s>'
-# stop symbol
+'''Start symbol---two are prepended to the start of ever sentence.'''
+
 STOP = '</s>'
-# unk symbol
+'''Stop symbol---one is appended to the end of every sentence.'''
+
 UNK = '<UNK>'
+'''Unknown word symbol used to describe any word that is out of vocabulary.'''
+
 # Katz back-off count discount hyper-parameter
-KATZ_DISCOUNT = 0.5
+KATZ_DISCOUNT = 0.6
 # the names of the different datasets we want to model
 DATASETS = ['reuters', 'brown', 'gutenberg']
 # whether or not to evaluate on the dev datasets
-DEV = True
+DEV = False
 
 
 def main():
