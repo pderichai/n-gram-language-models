@@ -117,7 +117,6 @@ def main():
         # (n_grams_to_probs, history_to_alphas, history_to_denoms)
         caches = (dict(), dict(), dict())
 
-        print('using Katz discount of: ' + str(KATZ_DISCOUNT))
         for test_dataset in DATASETS:
             print('evaluating ' + train_dataset + ' on ' + test_dataset + ' test set...')
             if DEV:
