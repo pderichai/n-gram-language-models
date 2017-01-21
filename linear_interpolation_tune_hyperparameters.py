@@ -14,8 +14,8 @@ DATASETS = ['reuters', 'brown', 'gutenberg']
 DEV = True
 
 # linear interpolation hyper-parameters
-LAMBDA_1s = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
-LAMBDA_2s = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+LAMBDA_1s = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8]
+LAMBDA_2s = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8]
 
 
 def main():
