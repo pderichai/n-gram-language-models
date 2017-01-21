@@ -9,7 +9,7 @@ STOP = '</s>'
 # unk symbol
 UNK = '<UNK>'
 # Katz back-off count discount hyper-parameter
-#KATZ_DISCOUNT = 0.2
+KATZ_DISCOUNT = 0.5
 # the names of the different datasets we want to model
 DATASETS = ['reuters', 'brown', 'gutenberg']
 # whether or not to evaluate on the dev datasets
@@ -17,8 +17,6 @@ DEV = True
 
 
 def main():
-    KATZ_DISCOUNTS = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9]
-
     def get_log_prob(n_gram, model, trie_dicts, caches):
         prob = get_prob(n_gram, model, trie_dicts, caches)
         log_prob = math.log(prob, 2)
@@ -110,27 +108,24 @@ def main():
         caches[1][history_n_gram] = ret
         return ret
 
-    KATZ_DISCOUNT = None
-    for i in KATZ_DISCOUNTS:
-        KATZ_DISCOUNT = i
-        for train_dataset in DATASETS:
-            print('training on ' + train_dataset + '...')
-            unigrams, bigrams, trigrams, unigrams_to_words_to_counts, bigrams_to_words_to_counts = train('data/' + train_dataset + '_train.txt')
-            model = (unigrams, bigrams, trigrams)
-            trie_dicts = (unigrams_to_words_to_counts, bigrams_to_words_to_counts)
+    for train_dataset in DATASETS:
+        print('training on ' + train_dataset + '...')
+        unigrams, bigrams, trigrams, unigrams_to_words_to_counts, bigrams_to_words_to_counts = train('data/' + train_dataset + '_train.txt')
+        model = (unigrams, bigrams, trigrams)
+        trie_dicts = (unigrams_to_words_to_counts, bigrams_to_words_to_counts)
 
-            # (n_grams_to_probs, history_to_alphas, history_to_denoms)
-            caches = (dict(), dict(), dict())
+        # (n_grams_to_probs, history_to_alphas, history_to_denoms)
+        caches = (dict(), dict(), dict())
 
-            print('using Katz discount of: ' + str(KATZ_DISCOUNT))
-            for test_dataset in DATASETS:
-                print('evaluating ' + train_dataset + ' on ' + test_dataset + ' test set...')
-                if DEV:
-                    perplexity = eval_model('data/' + test_dataset + '_dev.txt', model, get_log_prob, trie_dicts, caches)
-                else:
-                    perplexity = eval_model('data/' + test_dataset + '_test.txt', model, get_log_prob, trie_dicts, caches)
+        print('using Katz discount of: ' + str(KATZ_DISCOUNT))
+        for test_dataset in DATASETS:
+            print('evaluating ' + train_dataset + ' on ' + test_dataset + ' test set...')
+            if DEV:
+                perplexity = eval_model('data/' + test_dataset + '_dev.txt', model, get_log_prob, trie_dicts, caches)
+            else:
+                perplexity = eval_model('data/' + test_dataset + '_test.txt', model, get_log_prob, trie_dicts, caches)
 
-                print('trained on: ' + train_dataset + '; tested on: ' + test_dataset + '; perplexity: ' + str(perplexity))
+            print('trained on: ' + train_dataset + '; tested on: ' + test_dataset + '; perplexity: ' + str(perplexity))
 
 
 def eval_model(filename, model, log_prob_func, dict_tries, caches):
