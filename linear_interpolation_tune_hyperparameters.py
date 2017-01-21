@@ -62,7 +62,7 @@ def main():
         for j in LAMBDA_2s:
             LAMBDA_1 = i
             LAMBDA_2 = j
-            if LAMBDA_1 + LAMBDA_2 < 9.5:
+            if LAMBDA_1 + LAMBDA_2 < 0.9:
                 LAMBDA_3 = 1 - LAMBDA_1 - LAMBDA_2
                 print('LAMBDA1: ' + str(LAMBDA_1) + ' LAMBDA2: ' + str(LAMBDA_2) + ' LAMBDA3: ' + str(LAMBDA_3))
                 for train_dataset in DATASETS:
