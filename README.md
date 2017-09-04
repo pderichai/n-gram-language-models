@@ -1,3 +1,3 @@
 # n-gram-language-models
 
-Implementation of n-gram LMs using linear interpolation and Katz back-off.
+Implementation of an n-gram language model using Katz back-off and linear interpolation.
