@@ -1,3 +1,5 @@
+#!/usr/bin/evn python3
+
 import math
 from collections import Counter
 
